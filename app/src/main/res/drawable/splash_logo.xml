@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Premium Gradient-like Background Circle -->
+    <path
+        android:fillColor="#7D5FFF"
+        android:pathData="M54,54m-44,0a44,44 0,1 1,88 0a44,44 0,1 1,-88 0" />
+
+    <group
+        android:translateX="27"
+        android:translateY="27">
+        <!-- Chat Bubble - White for contrast -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M48,0L6,0C2.7,0 0,2.7 0,6v38c0,3.3 2.7,6 6,6h32l10,10V6C54,2.7 51.3,0 48,0z" />
+
+        <!-- AI Sparkle Icon - Royal Purple -->
+        <group
+            android:translateX="12"
+            android:translateY="10">
+            <path
+                android:fillColor="#7D5FFF"
+                android:pathData="M15,26L12.6,20.4L7,18L12.6,15.6L15,10L17.4,15.6L23,18L17.4,20.4L15,26zM26,14L24.4,10.4L20,9L24.4,7.6L26,4L27.6,7.6L32,9L27.6,10.4L26,14z" />
+        </group>
+    </group>
+</vector>

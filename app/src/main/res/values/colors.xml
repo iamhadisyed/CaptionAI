@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 Modern Color Palette -->
+    <color name="primary">#6C5CE7</color>
+    <color name="primaryContainer">#8E7CFF</color>
+    <color name="secondary">#00D2D3</color>
+    <color name="background">#F0F2F8</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="onBackground">#2D3436</color>
+    <color name="onSurface">#2D3436</color>
+</resources>

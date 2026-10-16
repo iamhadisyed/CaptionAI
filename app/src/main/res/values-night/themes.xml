@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The actual Material 3 application theme for Dark Mode -->
+    <style name="Theme.CaptionAI.Main" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryContainer">@color/primaryContainer</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="android:colorBackground">#121212</item>
+        <item name="colorSurface">#1E1E1E</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorOnBackground">#E0E0E0</item>
+        <item name="colorOnSurface">#E0E0E0</item>
+    </style>
+
+    <!-- The Splash Screen theme that the app launches with (Theme.CaptionAI) -->
+    <style name="Theme.CaptionAI" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#121212</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.CaptionAI.Main</item>
+    </style>
+</resources>
