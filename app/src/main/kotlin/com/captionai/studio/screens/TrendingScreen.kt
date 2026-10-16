@@ -142,6 +142,8 @@ fun TrendingScreen(navController: NavController) {
                         val caption = captions[index]
                         TrendingItem(index + 1, caption.caption)
                     }
+                    item { BannerAdView() }
+                    item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
             }
         }

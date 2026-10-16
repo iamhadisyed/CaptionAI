@@ -346,6 +346,19 @@ fun HomeScreen(navController: NavController) {
                 }
             }
             
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Rewarded Ad button — shown only when limit reached or as bonus option
+            if (!prefs.isPro() && prefs.getDailyCount() >= 3) {
+                RewardedAdButton {
+                    prefs.addBonusGenerations(3)
+                    Toast.makeText(context, "🎉 3 bonus generations added!", Toast.LENGTH_SHORT).show()
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Banner Ad at the bottom — earns every session
+            BannerAdView()
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

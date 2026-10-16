@@ -244,6 +244,10 @@ fun ResultContentModern(
                 onShare = { shareCaption(context, caption) },
                 onShareImage = { ImageUtils.shareCaptionCard(context, caption, result.platform) }
             )
+            // Native ad shown after 2nd caption card (best placement for CTR)
+            if (index == 1) {
+                NativeAdCard()
+            }
         }
 
         SectionLabel("Hashtags")
@@ -295,6 +299,10 @@ fun ResultContentModern(
             style = MaterialTheme.typography.labelSmall,
             color = Color.Gray
         )
+        Spacer(modifier = Modifier.height(16.dp))
+        // Banner ad at the bottom of results — always visible as user scrolls
+        BannerAdView()
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
