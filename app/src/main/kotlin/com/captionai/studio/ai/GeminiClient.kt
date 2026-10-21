@@ -1,6 +1,7 @@
 package com.captionai.studio.ai
 
 import android.util.Log
+import com.captionai.studio.BuildConfig
 import com.captionai.studio.storage.PrefsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -81,8 +82,9 @@ object GeminiClient {
     var pendingImageBase64: String? = null
 
     /**
-     * Requirement 1: Stable Caption Generation API implementation.
-     * Logic remains unchanged, but wrapped with key rotation failover.
+     * Caption Generation: Primary engine is Groq Cloud (LPU Inference).
+     * If Groq key is unconfigured or rate limit is reached (HTTP 429), 
+     * automatically fails over to Google Gemini.
      */
     suspend fun generateCaptions(request: CaptionRequest, imageBase64: String? = null): Result<CaptionResult> =
         withContext(Dispatchers.IO) {
@@ -97,7 +99,27 @@ object GeminiClient {
                 }
 
                 val prompt = buildCaptionPrompt(request)
-                // Use rotation-enabled executor
+                val userKey = PrefsManager.getInstance().getApiKey()
+
+                // ── 1. PRIMARY (1st Priority): Groq Cloud (Llama 3.3 70B / Llama 3.2 11B Vision) ──
+                val groqKey = GroqClient.getActiveKey(userKey)
+                if (groqKey.isNotBlank()) {
+                    try {
+                        Log.i(TAG, "Attempting caption generation via Primary AI: Groq Cloud (LPU)")
+                        val groqResult = GroqClient.generateCaptions(prompt, groqKey, imageBase64, request.platform)
+                        RateLimiter.recordRequest()
+                        lastRequest = request
+                        lastResult = groqResult
+                        return@withContext Result.success(groqResult)
+                    } catch (groqEx: Exception) {
+                        Log.w(TAG, "Primary engine (Groq) failed or rate limit reached: ${groqEx.message}. Initiating failover to Google Gemini...", groqEx)
+                    }
+                } else {
+                    Log.d(TAG, "Groq key not configured. Proceeding directly with Google Gemini.")
+                }
+
+                // ── 2. BACKUP (Failover): Google Gemini (Multi-Key Rotation) ──
+                Log.i(TAG, "Executing caption generation via Backup AI: Google Gemini")
                 val responseText = executeWithRotation(prompt, imageBase64, isTrendingSync = false)
                 RateLimiter.recordRequest()
 
@@ -106,14 +128,14 @@ object GeminiClient {
                 lastResult = parsed
                 Result.success(parsed)
             } catch (e: Exception) {
-                Log.e(TAG, "Caption generation error", e)
+                Log.e(TAG, "All AI providers failed for caption generation", e)
                 Result.failure(e)
             }
         }
 
     /**
-     * Requirement 2: Trending Sync investigation and update.
-     * Uses current API structure (v1beta fallback) to ensure connectivity.
+     * Trending Sync: Primary engine is Groq Cloud.
+     * Automatically fails over to Google Gemini if Groq fails, is rate-limited, or unconfigured.
      */
     suspend fun syncTrendingCaptions(language: String): Result<List<String>> =
         withContext(Dispatchers.IO) {
@@ -123,26 +145,46 @@ object GeminiClient {
                 }
 
                 val prompt = buildTrendingPrompt(language)
-                // Updated to use the same robust rotation and latest endpoint logic
+                val userKey = PrefsManager.getInstance().getApiKey()
+
+                // ── 1. PRIMARY (1st Priority): Groq Cloud ──
+                val groqKey = GroqClient.getActiveKey(userKey)
+                if (groqKey.isNotBlank()) {
+                    try {
+                        Log.i(TAG, "Attempting trending sync via Primary AI: Groq Cloud")
+                        val captions = GroqClient.syncTrendingCaptions(prompt, groqKey)
+                        RateLimiter.recordRequest()
+                        return@withContext Result.success(captions)
+                    } catch (groqEx: Exception) {
+                        Log.w(TAG, "Primary engine (Groq) failed for trending: ${groqEx.message}. Failing over to Gemini...", groqEx)
+                    }
+                }
+
+                // ── 2. BACKUP (Failover): Google Gemini ──
+                Log.i(TAG, "Executing trending sync via Backup AI: Google Gemini")
                 val responseText = executeWithRotation(prompt, null, isTrendingSync = true)
                 RateLimiter.recordRequest()
 
                 val captions = parseTrendingResponse(responseText)
                 Result.success(captions)
             } catch (e: Exception) {
-                Log.e(TAG, "Trending sync error", e)
+                Log.e(TAG, "All AI providers failed for trending sync", e)
                 Result.failure(e)
             }
         }
 
     /**
-     * Requirement 3: API Key failover logic.
+     * Gemini API Key failover logic with round-robin rotation.
      */
     private fun executeWithRotation(prompt: String, imageBase64: String?, isTrendingSync: Boolean): String {
         val userKey = PrefsManager.getInstance().getApiKey()
-        if (!userKey.isNullOrBlank()) {
-            Log.d(TAG, "Using custom user API key")
+        if (!userKey.isNullOrBlank() && !userKey.startsWith("gsk_") && !userKey.startsWith("xai-") && !userKey.startsWith("grok_")) {
+            Log.d(TAG, "Using custom user Gemini API key")
             return callGeminiInternal(prompt, userKey.trim(), imageBase64, isTrendingSync)
+        }
+
+        if (apiKeys.isEmpty()) {
+            throw Exception("No Gemini API keys configured. Please add GEMINI_KEY in local.properties or Settings.")
         }
 
         var lastException: Exception? = null
@@ -153,7 +195,7 @@ object GeminiClient {
             val key = apiKeys[keyIndex]
 
             try {
-                Log.i(TAG, "Executing API call with Key #${keyIndex + 1}")
+                Log.i(TAG, "Executing Gemini API call with Key #${keyIndex + 1}")
                 val result = callGeminiInternal(prompt, key, imageBase64, isTrendingSync)
                 
                 // Update current working key index
@@ -163,7 +205,7 @@ object GeminiClient {
                 val errorMsg = e.message ?: ""
                 // Rotate only on quota (429) or certain permission (403) errors
                 if (errorMsg.contains("429") || errorMsg.contains("quota", true) || errorMsg.contains("403")) {
-                    Log.w(TAG, "Key #${keyIndex + 1} exhausted. Rotating to next...")
+                    Log.w(TAG, "Gemini Key #${keyIndex + 1} exhausted. Rotating to next...")
                     lastException = e
                     continue
                 } else {
@@ -171,7 +213,7 @@ object GeminiClient {
                 }
             }
         }
-        throw lastException ?: Exception("Failover failed: No available keys.")
+        throw lastException ?: Exception("Failover failed: No available Gemini keys.")
     }
 
     private fun callGeminiInternal(prompt: String, apiKey: String, imageBase64: String?, isTrendingSync: Boolean): String {

@@ -30,6 +30,8 @@ android {
         buildConfigField "String", "GEMINI_KEY_1", "\"${localProps.getProperty('GEMINI_KEY_1', '')}\""
         buildConfigField "String", "GEMINI_KEY_2", "\"${localProps.getProperty('GEMINI_KEY_2', '')}\""
         buildConfigField "String", "GEMINI_KEY_3", "\"${localProps.getProperty('GEMINI_KEY_3', '')}\""
+        // Groq Cloud API key (Primary AI Engine) injected securely from local.properties
+        buildConfigField "String", "GROQ_API_KEY", "\"${localProps.getProperty('GROQ_API_KEY', localProps.getProperty('GROK_API_KEY', ''))}\""
     }
 
     buildTypes {

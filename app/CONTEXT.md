@@ -23,7 +23,7 @@ Caption AI is an Android app that generates viral social media captions, hashtag
 | Language | Kotlin |
 | UI | Jetpack Compose + Material3 (2026 AI Era Design) |
 | Navigation | Navigation Compose 2.7.6 |
-| AI | Google Gemini 1.5 Flash (REST API) |
+| AI | Groq Cloud LPU (1st Priority) + Google Gemini 1.5/2.5 Flash (Backup with 3-key failover) |
 | Local DB | SQLite via SQLiteOpenHelper |
 | Preferences | SharedPreferences via PrefsManager singleton |
 | Ads | Google AdMob (Banner, Interstitial, Rewarded) |
@@ -52,7 +52,8 @@ com.captionai.studio/
 │   └── SettingsScreen.kt       ← Language, API Key override, Dark mode, Subscriptions
 │
 ├── ai/
-│   └── GeminiClient.kt         ← REST calls, Rate limiter, Prompt builders (Multi-lang support)
+│   ├── GroqClient.kt           ← Groq Cloud LPU REST API (1st Priority: Llama 3.3 70B & Llama 3.2 11B Vision)
+│   └── GeminiClient.kt         ← Primary/Backup orchestrator & Gemini REST calls (3-key failover)
 │
 ├── storage/
 │   ├── PrefsManager.kt         ← SharedPreferences: API Key, Daily count (Limit 3), Pro status
@@ -93,11 +94,21 @@ The following files are complete and modernized:
 
 ---
 
-## Gemini API Key Logic
+## AI Engine & Key Logic (Groq Primary + Gemini Backup)
 
-Caption AI provides a **built-in feature key** for all users. 
-- If a user wants to use their own quota (e.g., higher rate limits), they can add their own Gemini API key in **Settings**.
-- The app will prioritize the user's key if provided, otherwise it falls back to the default feature key.
+Caption AI implements a resilient dual-provider architecture:
+1. **1st Priority Engine — Groq Cloud (LPU Inference):**
+   - Text captions & trending use `llama-3.3-70b-versatile` (blazing fast inference, superior reasoning and multilingual phrasing).
+   - Photo/Image-to-caption uses `llama-3.2-11b-vision-preview` (multimodal vision via base64 data URLs).
+   - Reads `GROQ_API_KEY` from `local.properties`.
+2. **2nd Priority Engine (Failover) — Google Gemini (3-Key Rotation):**
+   - If Groq rate limits are exceeded (HTTP 429), quota exhausted, or if Groq is unconfigured, the app automatically and transparently fails over to Google Gemini.
+   - Rotates across 3 built-in Gemini keys (`GEMINI_KEY_1`, `GEMINI_KEY_2`, `GEMINI_KEY_3`).
+3. **User Custom Key Override:**
+   - In Settings, users can input their personal key:
+     - Groq keys starting with `gsk_...`
+     - Gemini keys starting with `AIzaSy...`
+   - Custom keys take highest priority for their respective provider.
 
 ---
 

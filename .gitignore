@@ -5,9 +5,10 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
-# Android Studio / IntelliJ
+# Android Studio / IntelliJ / VS Code
 *.iml
 .idea/
+.vscode/
 *.hprof
 local.properties
 

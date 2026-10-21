@@ -106,7 +106,7 @@ fun SettingsScreen(navController: NavController, billingHelper: BillingHelper) {
             if (showAdvanced) {
                 SectionLabel("Custom AI Key (Advanced)")
                 Text(
-                    "Optional: Use your own AI key for higher rate limits.",
+                    "Optional: Use your own Groq (gsk_...) or Gemini (AIzaSy...) key for custom limits.",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Gray,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
@@ -226,7 +226,7 @@ fun ApiKeyInput(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("AIzaSy...", style = MaterialTheme.typography.bodySmall, color = Color.LightGray) },
+                placeholder = { Text("gsk_... or AIzaSy...", style = MaterialTheme.typography.bodySmall, color = Color.LightGray) },
                 visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Transparent,
