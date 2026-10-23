@@ -13,7 +13,7 @@ import java.net.URL
  *
  * Supported models:
  *  - Text & Trending Captions: GPT OSS 120B (openai/gpt-oss-120b) with fallback to 20B (openai/gpt-oss-20b)
- *  - Multimodal Photo Analysis: Llama 4 Scout (meta-llama/llama-4-scout-17b-16e-instruct)
+ *  - Multimodal Photo Analysis: Qwen 3.8 27B Vision (qwen/qwen3.8-27b)
  *
  * Automatically falls over to Google Gemini if Groq rate limits are exceeded (429)
  * or if Groq is unconfigured / encounters network failure.
@@ -26,8 +26,7 @@ object GroqClient {
     // Active production models hosted on Groq Cloud
     private const val TEXT_MODEL = "openai/gpt-oss-120b"
     private const val FAST_TEXT_MODEL = "openai/gpt-oss-20b"
-    // Groq-hosted multimodal model (supports image_url input). Verify against console.groq.com/docs/models.
-    private const val VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+    private const val VISION_MODEL = "qwen/qwen3.8-27b"
 
     /**
      * Checks if a Groq API key is available via custom user key or BuildConfig.

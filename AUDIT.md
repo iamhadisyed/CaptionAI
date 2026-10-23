@@ -99,7 +99,7 @@ None of the changes were compiled or run (no Android SDK in the review environme
 **Fixed in code**
 - #1/#22 Urdu mapping via new `Language` helper (+ unit tests) · #2 offer token and result handling · #3 Pro no longer revoked on billing errors · #4 observable `proState`, pending purchases handled, purchase acknowledged
 - #5 quota charged only after a successful result · #6/#7 cache keyed on image, image reset on every request and after use · "View last result" / rotation re-show without charging
-- #8 token limits raised, `reasoning_effort=low` for gpt-oss · #9 vision model switched to `meta-llama/llama-4-scout-17b-16e-instruct` (**please confirm in the Groq console**)
+- #8 token limits raised, `reasoning_effort=low` for gpt-oss · #9 vision model `qwen/qwen3.8-27b` confirmed working by the maintainer in local testing (kept)
 - #10 rewarded ad preloaded and wired to the limit dialog (+3 generations); still uses Google's **test ad unit ID** — replace it
 - #11 non-destructive DB upgrade (DB v2), #16 history capped/grouped by transaction and read through `DatabaseHelper`, #17 duplicate favorites prevented and favorite state restored from the DB
 - #12 limit constants and bonus-aware counter · #13/#14 tolerant Gemini parsing, safety-block messages, user-key routing · #15 thread-safe rate limiter with a friendly message

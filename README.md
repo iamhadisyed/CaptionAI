@@ -28,7 +28,7 @@
                          ▼                          ▼
               1. GroqClient (primary)     2. Gemini REST (failover)
               gpt-oss-120b → gpt-oss-20b   gemini-2.5-flash
-              vision: llama-4-scout        3 rotating keys, or user key
+              vision: qwen3.8-27b          3 rotating keys, or user key
 ```
 
 1. **Groq Cloud** (OpenAI-compatible chat API) is tried first.
