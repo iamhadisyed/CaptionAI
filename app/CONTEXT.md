@@ -98,8 +98,8 @@ The following files are complete and modernized:
 
 Caption AI implements a resilient dual-provider architecture:
 1. **1st Priority Engine — Groq Cloud (LPU Inference):**
-   - Text captions & trending use `llama-3.3-70b-versatile` (blazing fast inference, superior reasoning and multilingual phrasing).
-   - Photo/Image-to-caption uses `llama-3.2-11b-vision-preview` (multimodal vision via base64 data URLs).
+   - Text captions & trending use `openai/gpt-oss-120b` with fallback to `openai/gpt-oss-20b` (blazing fast inference, superior reasoning and multilingual phrasing).
+   - Photo/Image-to-caption uses `qwen/qwen3.8-27b` (multimodal vision via base64 data URLs).
    - Reads `GROQ_API_KEY` from `local.properties`.
 2. **2nd Priority Engine (Failover) — Google Gemini (3-Key Rotation):**
    - If Groq rate limits are exceeded (HTTP 429), quota exhausted, or if Groq is unconfigured, the app automatically and transparently fails over to Google Gemini.
@@ -107,7 +107,7 @@ Caption AI implements a resilient dual-provider architecture:
 3. **User Custom Key Override:**
    - In Settings, users can input their personal key:
      - Groq keys starting with `gsk_...`
-     - Gemini keys starting with `AIzaSy...`
+     - Gemini keys starting with `AIzaSy...` or `AQ...`
    - Custom keys take highest priority for their respective provider.
 
 ---

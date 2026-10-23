@@ -12,8 +12,8 @@ import java.net.URL
  * Acts as the PRIMARY (1st Priority) AI engine for Caption AI.
  *
  * Supported models:
- *  - Text & Trending Captions: Meta Llama 3.3 70B Versatile (llama-3.3-70b-versatile)
- *  - Multimodal Photo Analysis: Meta Llama 3.2 11B Vision (llama-3.2-11b-vision-preview)
+ *  - Text & Trending Captions: GPT OSS 120B (openai/gpt-oss-120b) with fallback to 20B (openai/gpt-oss-20b)
+ *  - Multimodal Photo Analysis: Qwen 3.8 27B Vision (qwen/qwen3.8-27b)
  *
  * Automatically falls over to Google Gemini if Groq rate limits are exceeded (429)
  * or if Groq is unconfigured / encounters network failure.
@@ -37,14 +37,13 @@ object GroqClient {
 
     /**
      * Retrieves the active Groq key.
-     * Prioritizes custom key override if it looks like a Groq key (gsk_...) or general key,
+     * Prioritizes custom key override if it's a valid Groq key (starts with gsk_),
      * otherwise falls back to BuildConfig.GROQ_API_KEY.
      */
     fun getActiveKey(customKey: String? = null): String {
         if (!customKey.isNullOrBlank()) {
             val trimmed = customKey.trim()
-            // If user explicitly entered a Groq key or non-Gemini key
-            if (trimmed.startsWith("gsk_") || !trimmed.startsWith("AIzaSy")) {
+            if (trimmed.startsWith("gsk_")) {
                 return trimmed
             }
         }
@@ -128,6 +127,7 @@ object GroqClient {
         conn.requestMethod = "POST"
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setRequestProperty("Authorization", "Bearer ${apiKey.trim()}")
+        conn.setRequestProperty("User-Agent", "CaptionAI-Android/1.0.2")
         conn.doOutput = true
         conn.connectTimeout = 25_000
         conn.readTimeout = 25_000
@@ -201,13 +201,17 @@ object GroqClient {
         val parsed = JSONObject(cleanJson)
 
         val captions = mutableListOf<String>()
-        val capsArr = parsed.optJSONArray("captions") ?: JSONArray()
+        val capsArr = parsed.optJSONArray("captions") ?: parsed.optJSONArray("caption") ?: JSONArray()
         for (i in 0 until capsArr.length()) {
             captions.add(capsArr.getString(i))
         }
 
+        if (captions.isEmpty()) {
+            throw Exception("Groq returned empty captions list")
+        }
+
         val hashtags = mutableListOf<String>()
-        val tagsArr = parsed.optJSONArray("hashtags") ?: JSONArray()
+        val tagsArr = parsed.optJSONArray("hashtags") ?: parsed.optJSONArray("tags") ?: JSONArray()
         for (i in 0 until tagsArr.length()) {
             val tag = tagsArr.getString(i).trim()
             hashtags.add("#${tag.removePrefix("#")}")
