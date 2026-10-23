@@ -24,3 +24,10 @@ captionai-release
 # OS
 .DS_Store
 Thumbs.db
+
+# Signing keys
+*.jks
+*.keystore
+
+# Local release outputs
+app/release/

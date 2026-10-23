@@ -13,7 +13,7 @@ import java.net.URL
  *
  * Supported models:
  *  - Text & Trending Captions: GPT OSS 120B (openai/gpt-oss-120b) with fallback to 20B (openai/gpt-oss-20b)
- *  - Multimodal Photo Analysis: Qwen 3.8 27B Vision (qwen/qwen3.8-27b)
+ *  - Multimodal Photo Analysis: Llama 4 Scout (meta-llama/llama-4-scout-17b-16e-instruct)
  *
  * Automatically falls over to Google Gemini if Groq rate limits are exceeded (429)
  * or if Groq is unconfigured / encounters network failure.
@@ -26,7 +26,8 @@ object GroqClient {
     // Active production models hosted on Groq Cloud
     private const val TEXT_MODEL = "openai/gpt-oss-120b"
     private const val FAST_TEXT_MODEL = "openai/gpt-oss-20b"
-    private const val VISION_MODEL = "qwen/qwen3.8-27b"
+    // Groq-hosted multimodal model (supports image_url input). Verify against console.groq.com/docs/models.
+    private const val VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
     /**
      * Checks if a Groq API key is available via custom user key or BuildConfig.
@@ -130,12 +131,16 @@ object GroqClient {
         conn.setRequestProperty("User-Agent", "CaptionAI-Android/${BuildConfig.VERSION_NAME}")
         conn.doOutput = true
         conn.connectTimeout = 25_000
-        conn.readTimeout = 25_000
+        conn.readTimeout = 45_000
 
         val requestBody = JSONObject().apply {
             put("model", model)
             put("temperature", 0.7)
-            put("max_completion_tokens", 1000)
+            // gpt-oss models spend completion tokens on reasoning, so leave plenty of headroom.
+            put("max_completion_tokens", 4096)
+            if (model.startsWith("openai/gpt-oss")) {
+                put("reasoning_effort", "low")
+            }
             if (useJsonObjectMode) {
                 put("response_format", JSONObject().put("type", "json_object"))
             }
@@ -195,7 +200,8 @@ object GroqClient {
     private fun parseCaptionResponse(raw: String, platform: String): CaptionResult {
         val choices = JSONObject(raw).getJSONArray("choices")
         if (choices.length() == 0) throw Exception("No choices in Groq response")
-        val content = choices.getJSONObject(0).getJSONObject("message").getString("content")
+        val content = choices.getJSONObject(0).getJSONObject("message").optString("content")
+        if (content.isBlank()) throw Exception("Groq returned an empty response")
 
         val cleanJson = extractJsonBlock(content)
         val parsed = JSONObject(cleanJson)

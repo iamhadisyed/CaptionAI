@@ -32,7 +32,8 @@ import com.captionai.studio.storage.DatabaseHelper
 import com.captionai.studio.storage.PrefsManager
 import com.captionai.studio.utils.AdManager
 import com.captionai.studio.utils.ImageUtils
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,24 +64,38 @@ fun ResultScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var favoritedItems by remember { mutableStateOf(setOf<String>()) }
 
-    LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            val imageBase64 = GeminiClient.pendingImageBase64
-            val res = GeminiClient.generateCaptions(request, imageBase64)
-            res.onSuccess {
-                try {
-                    result = it
-                    db.saveCaptionToHistory(it)
-                    GeminiClient.pendingImageBase64 = null
-                    (context as? Activity)?.let { act -> AdManager.onCaptionGenerated(act) }
-                } catch (e: Exception) {
-                    error = "Process Error: ${e.message}"
-                }
-            }.onFailure {
-                error = it.message ?: "AI Request Failed"
-            }
+    var attempt by remember { mutableStateOf(0) }
+    // True when the last result was already delivered (rotation, back-navigation, "View Last Result"):
+    // show it again without calling the AI or charging quota.
+    val viewOnly = remember { GeminiClient.showLastResultOnly }
+
+    LaunchedEffect(attempt) {
+        isLoading = true
+        error = null
+        val cached = GeminiClient.lastResult
+        if (viewOnly && attempt == 0 && cached != null) {
+            result = cached
             isLoading = false
+            return@LaunchedEffect
         }
+        val imageBase64 = GeminiClient.pendingImageBase64
+        val res = GeminiClient.generateCaptions(request, imageBase64, forceRefresh = attempt > 0)
+        res.onSuccess {
+            result = it
+            GeminiClient.showLastResultOnly = true
+            favoritedItems = withContext(Dispatchers.IO) {
+                (it.captions + it.hashtags.joinToString(" ") + it.description).filter { t -> t.isNotBlank() && db.isFavorite(t) }.toSet()
+            }
+            // Charge quota only now that the user actually received a result.
+            prefs.consumeGeneration()
+            withContext(Dispatchers.IO) { db.saveCaptionToHistory(it) }
+            (context as? Activity)?.let { act -> AdManager.onCaptionGenerated(act) }
+        }.onFailure {
+            error = friendlyError(it)
+        }
+        // Don't let this photo leak into later requests.
+        GeminiClient.pendingImageBase64 = null
+        isLoading = false
     }
 
     Scaffold(
@@ -124,6 +139,8 @@ fun ResultScreen(
                 error != null -> ErrorStateModern(error!!) { navController.popBackStack() }
                 result != null -> ResultContentModern(
                     result = result!!,
+                    canRegenerate = prefs.canGenerate(),
+                    onRegenerate = { attempt++ },
                 context = context,
                 favoritedItems = favoritedItems,
                 onSaveFavorite = { caption -> 
@@ -135,6 +152,23 @@ fun ResultScreen(
                 )
             }
         }
+    }
+}
+
+/** Turns low-level exceptions into messages a user can act on. */
+private fun friendlyError(t: Throwable): String {
+    val m = t.message.orEmpty()
+    return when {
+        t is GeminiClient.RateLimitException -> m
+        t is java.net.UnknownHostException || t is java.net.SocketTimeoutException || t is java.net.ConnectException ->
+            "No internet connection or the AI service timed out. Check your connection and try again."
+        m.contains("429") || m.contains("quota", true) || m.contains("rate", true) ->
+            "The AI service is busy right now. Please try again in a minute."
+        m.contains("401") || m.contains("403") || m.contains("API key", true) ->
+            "The AI key was rejected. If you set a custom key in Settings, check that it is valid."
+        m.contains("404") -> "The AI model is temporarily unavailable. Please try again later."
+        m.isBlank() -> "AI request failed. Please try again."
+        else -> m
     }
 }
 
@@ -190,9 +224,7 @@ fun ErrorStateModern(message: String, onBack: () -> Unit) {
         Text("AI Generation Failed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = if (message.contains("404")) "Model Not Found. This usually means the region is unsupported or the endpoint version is wrong." 
-                   else if (message.contains("403")) "Permission Denied. Please ensure your API Key allows 'com.captionai.studio' package name."
-                   else message,
+            text = message,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
@@ -213,6 +245,8 @@ fun ErrorStateModern(message: String, onBack: () -> Unit) {
 @Composable
 fun ResultContentModern(
     result: CaptionResult, 
+    canRegenerate: Boolean,
+    onRegenerate: () -> Unit,
     context: Context, 
     favoritedItems: Set<String>,
     onSaveFavorite: (String) -> Unit
@@ -287,6 +321,17 @@ fun ResultContentModern(
             )
         }
         
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(
+            onClick = onRegenerate,
+            enabled = canRegenerate,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(52.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(if (canRegenerate) "Regenerate" else "Daily limit reached", fontWeight = FontWeight.Bold)
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             "AI might make mistakes. Verify before posting.",

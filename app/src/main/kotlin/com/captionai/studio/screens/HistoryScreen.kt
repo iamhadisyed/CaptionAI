@@ -46,27 +46,11 @@ fun HistoryScreen(navController: NavController) {
     
     fun refreshHistory() {
         try {
-            val cursor = db.readableDatabase.query(
-                "history", null, null, null, null, null, "created_at DESC"
-            )
-            val items = mutableListOf<HistoryItem>()
-            with(cursor) {
-                while (moveToNext()) {
-                    items.add(
-                        HistoryItem(
-                            id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
-                            caption = cursor.getString(cursor.getColumnIndexOrThrow("caption")),
-                            hashtags = cursor.getString(cursor.getColumnIndexOrThrow("hashtags")),
-                            platform = cursor.getString(cursor.getColumnIndexOrThrow("platform")),
-                            createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at"))
-                        )
-                    )
-                }
-                close()
+            historyItems = db.getHistory().map {
+                HistoryItem(it.id, it.caption, it.hashtags, it.platform, it.createdAt)
             }
-            historyItems = items
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("HistoryScreen", "Failed to load history", e)
         }
     }
 

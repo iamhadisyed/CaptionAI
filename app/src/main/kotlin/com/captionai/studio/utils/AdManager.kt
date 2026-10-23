@@ -20,7 +20,8 @@ object AdManager {
     private const val NATIVE_AD_UNIT_ID     = "ca-app-pub-1237562221952085/3584354536"
     private const val INTERSTITIAL_AD_UNIT  = "ca-app-pub-1237562221952085/9958191194"
     
-    // Fallback test ID for rewarded as it wasn't provided, or you can use Full Page if needed
+    // TODO: replace with your real rewarded ad unit ID from AdMob before release.
+    // This is Google's official test ID, so no revenue is earned until it is replaced.
     private const val REWARDED_AD_UNIT      = "ca-app-pub-3940256099942544/5224354917"
 
     private var interstitialAd: InterstitialAd? = null
@@ -30,7 +31,7 @@ object AdManager {
     fun initialize(context: Context) {
         MobileAds.initialize(context)
         preloadInterstitial(context)
-        // preloadRewarded(context) // Optional: disabled as real ID was not provided
+        preloadRewarded(context)
     }
 
     // ── Banner Ad ─────────────────────────────────────────────────────────────
@@ -100,13 +101,22 @@ object AdManager {
 
     // ── Rewarded Ad (Bonus) ───────────────────────────────────────────────────
 
-    fun showRewardedAd(activity: Activity, onRewarded: () -> Unit) {
-        rewardedAd?.show(activity) { _ ->
-            onRewarded()
+    fun isRewardedReady(): Boolean = rewardedAd != null
+
+    /**
+     * Shows a rewarded ad. [onRewarded] fires only when the user earns the reward.
+     * Returns false (and starts loading another ad) if none is ready yet.
+     */
+    fun showRewardedAd(activity: Activity, onRewarded: () -> Unit): Boolean {
+        val ad = rewardedAd
+        if (ad == null) {
             preloadRewarded(activity)
-        } ?: run {
-            preloadRewarded(activity)
+            return false
         }
+        rewardedAd = null
+        ad.show(activity) { _ -> onRewarded() }
+        preloadRewarded(activity)
+        return true
     }
 
     private fun preloadRewarded(context: Context) {

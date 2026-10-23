@@ -2,7 +2,7 @@
 
 **Caption AI** is a serverless Android app that writes viral social-media captions, hashtags, post descriptions and bio ideas with AI. It is built for Pakistani and South Asian creators: you can describe your post in **English, Urdu (اردو), Roman Urdu or Hindi**, optionally attach a **photo**, and get ready-to-post content for Instagram, TikTok, Facebook, WhatsApp and LinkedIn.
 
-> Package: `com.captionai.studio` · Version `1.1.0` (versionCode 3) · minSdk 24 · target/compileSdk 35
+> Package: `com.captionai.studio` · Version `1.2.0` (versionCode 4) · minSdk 24 · target/compileSdk 35
 
 ---
 
@@ -16,6 +16,7 @@
 - **Trending** – AI-synced list of ~25 "viral" captions, refreshable every 12 h.
 - **Favorites and History** – stored locally in SQLite, available offline.
 - **Free / Pro model** – 3 free generations per day (+ bonus from rewarded ads); Pro subscription removes limits and ads.
+- **Regenerate** for fresh options, photo thumbnail preview, and quota charged only for successful results.
 - **Dark / light theme**, splash screen, floating bottom navigation.
 
 ## How the AI layer works
@@ -27,7 +28,7 @@
                          ▼                          ▼
               1. GroqClient (primary)     2. Gemini REST (failover)
               gpt-oss-120b → gpt-oss-20b   gemini-2.5-flash
-              vision: qwen (image input)   3 rotating keys, or user key
+              vision: llama-4-scout        3 rotating keys, or user key
 ```
 
 1. **Groq Cloud** (OpenAI-compatible chat API) is tried first.
@@ -97,6 +98,7 @@ KEY_PASSWORD=...
 ```bash
 ./gradlew assembleDebug        # debug APK
 ./gradlew installDebug         # install on a connected device
+./gradlew testDebugUnitTest    # unit tests
 ./gradlew bundleRelease        # signed AAB for Google Play (needs STORE_* values)
 ```
 
@@ -107,6 +109,7 @@ KEY_PASSWORD=...
 | | Free | Pro (`caption_ai_pro_monthly`) |
 |---|---|---|
 | Generations | 3 per day (+3 per rewarded ad) | Unlimited |
+| Price | — | Shown from Google Play (localised) |
 | Ads | Banner + interstitial every 3rd generation | None |
 
 ## Privacy

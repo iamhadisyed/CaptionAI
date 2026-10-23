@@ -27,7 +27,7 @@ Caption AI is an Android app that generates viral social media captions, hashtag
 | Local DB | SQLite via SQLiteOpenHelper |
 | Preferences | SharedPreferences via PrefsManager singleton |
 | Ads | Google AdMob (Banner, Interstitial, Rewarded) |
-| Billing | Google Play Billing 6.1.0 (Monthly Subscription $25/mo) |
+| Billing | Google Play Billing 6.1.0 (Monthly Subscription (price from Google Play)) |
 | Build | Gradle, minSdk 24, targetSdk 34, Compose BOM 2024.01.00 |
 
 ---
@@ -99,7 +99,7 @@ The following files are complete and modernized:
 Caption AI implements a resilient dual-provider architecture:
 1. **1st Priority Engine — Groq Cloud (LPU Inference):**
    - Text captions & trending use `openai/gpt-oss-120b` with fallback to `openai/gpt-oss-20b` (blazing fast inference, superior reasoning and multilingual phrasing).
-   - Photo/Image-to-caption uses `qwen/qwen3.8-27b` (multimodal vision via base64 data URLs).
+   - Photo/Image-to-caption uses `meta-llama/llama-4-scout-17b-16e-instruct` (multimodal vision via base64 data URLs).
    - Reads `GROQ_API_KEY` from `local.properties`.
 2. **2nd Priority Engine (Failover) — Google Gemini (3-Key Rotation):**
    - If Groq rate limits are exceeded (HTTP 429), quota exhausted, or if Groq is unconfigured, the app automatically and transparently fails over to Google Gemini.
@@ -132,4 +132,4 @@ Caption AI implements a resilient dual-provider architecture:
 
 ---
 
-*Last updated: Caption AI v1.2.0 — Subscription and Modern Design Update*
+*Last updated: Caption AI v1.2.0 — see AUDIT.md for the fix log*

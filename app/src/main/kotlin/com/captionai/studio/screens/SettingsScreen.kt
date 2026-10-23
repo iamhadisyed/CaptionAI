@@ -50,7 +50,10 @@ fun SettingsScreen(navController: NavController, billingHelper: BillingHelper) {
             )
 
             // Pro upgrade banner
-            ProUpgradeBanner(isPro = prefs.isPro()) {
+            val isPro by prefs.proState
+            var priceLabel by remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(Unit) { billingHelper.queryFormattedPrice { priceLabel = it } }
+            ProUpgradeBanner(isPro = isPro, price = priceLabel) {
                 (context as? Activity)?.let { activity ->
                     billingHelper.launchPurchase(activity)
                 }
@@ -117,8 +120,18 @@ fun SettingsScreen(navController: NavController, billingHelper: BillingHelper) {
                     onValueChange = { apiKey = it },
                     onToggleVisibility = { apiKeyVisible = !apiKeyVisible },
                     onSave = { 
-                        prefs.setApiKey(apiKey)
-                        Toast.makeText(context, "Key Saved!", Toast.LENGTH_SHORT).show()
+                        val key = apiKey.trim()
+                        when {
+                            key.isEmpty() -> {
+                                prefs.setApiKey("")
+                                Toast.makeText(context, "Custom key removed", Toast.LENGTH_SHORT).show()
+                            }
+                            key.startsWith("gsk_") || key.startsWith("AIza") || key.startsWith("AQ.") -> {
+                                prefs.setApiKey(key)
+                                Toast.makeText(context, "Key Saved!", Toast.LENGTH_SHORT).show()
+                            }
+                            else -> Toast.makeText(context, "Invalid key. Groq keys start with gsk_, Gemini keys with AIza.", Toast.LENGTH_LONG).show()
+                        }
                     }
                 )
             }
@@ -146,7 +159,7 @@ fun SettingsScreen(navController: NavController, billingHelper: BillingHelper) {
 }
 
 @Composable
-fun ProUpgradeBanner(isPro: Boolean, onUpgrade: () -> Unit) {
+fun ProUpgradeBanner(isPro: Boolean, price: String?, onUpgrade: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).shadow(10.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(0.05f)),
         shape = RoundedCornerShape(24.dp),
@@ -162,10 +175,10 @@ fun ProUpgradeBanner(isPro: Boolean, onUpgrade: () -> Unit) {
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    if (isPro) "Pro Active" else "Upgrade to Pro ($5/mo)",
+                    if (isPro) "Pro Active" else "Upgrade to Pro" + (price?.let { " ($it/mo)" } ?: ""),
                     style = MaterialTheme.typography.titleSmall, 
                     fontWeight = FontWeight.Bold,
-                    color = if (isPro) Color.White else Color.Black
+                    color = if (isPro) Color.White else MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     if (isPro) "Enjoy unlimited power" else "Get unlimited generations and high-priority AI",
@@ -186,7 +199,7 @@ fun LanguageSelector(selected: String, onSelect: (String) -> Unit) {
         contentPadding = PaddingValues(horizontal = 24.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        listOf("English", "اردو", "Roman Urdu").forEach { lang ->
+        com.captionai.studio.ai.Language.DISPLAY_LABELS.forEach { lang ->
             item {
                 val isSelected = selected == lang
                 Surface(
