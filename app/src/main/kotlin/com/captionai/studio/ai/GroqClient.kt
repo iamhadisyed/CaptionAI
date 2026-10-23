@@ -127,7 +127,7 @@ object GroqClient {
         conn.requestMethod = "POST"
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setRequestProperty("Authorization", "Bearer ${apiKey.trim()}")
-        conn.setRequestProperty("User-Agent", "CaptionAI-Android/1.0.2")
+        conn.setRequestProperty("User-Agent", "CaptionAI-Android/${BuildConfig.VERSION_NAME}")
         conn.doOutput = true
         conn.connectTimeout = 25_000
         conn.readTimeout = 25_000
