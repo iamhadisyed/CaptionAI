@@ -19,7 +19,7 @@ object AdManager {
 
     private const val BANNER_AD_UNIT_ID     = "ca-app-pub-4894264775611031/1876381885"
     private const val NATIVE_AD_UNIT_ID     = "ca-app-pub-1237562221952085/3584354536"
-    private const val INTERSTITIAL_AD_UNIT  = "ca-app-pub-1237562221952085/9958191194"
+    private const val INTERSTITIAL_AD_UNIT  = "ca-app-pub-4894264775611031/8058646850"
     
     // TODO: replace with your real rewarded ad unit ID from AdMob before release.
     // This is Google's official test ID, so no revenue is earned until it is replaced.
