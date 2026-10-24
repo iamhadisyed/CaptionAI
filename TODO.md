@@ -10,7 +10,7 @@ Work through this on your machine. Details for each finding are in [`AUDIT.md`](
 - [ ] **Build and smoke-test a release build** (`./gradlew assembleRelease`). R8 shrinking was turned on and has not been tested.
 
 ## 2. Before publishing to Google Play
-- [ ] AdMob: add the app as "not listed in a store", create a **Rewarded** ad unit, paste its ID into `REWARDED_AD_UNIT` in `AdManager.kt`
+- [x] AdMob units created and wired (app open, banner, interstitial, rewarded)
 - [ ] After publishing: link the app to the Play listing in AdMob (package `com.captionai.studio`)
 - [ ] Play Console: declare ads, fill Data safety (photos sent to AI providers), publish `PRIVACY_POLICY.md` at a public URL
 - [ ] Create the subscription `caption_ai_pro_monthly` with a base plan, then test the purchase on a licensed tester account

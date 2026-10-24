@@ -32,7 +32,7 @@ class PrefsManager private constructor(context: Context) {
         }
 
         const val FREE_DAILY_LIMIT = 3
-        const val REWARDED_BONUS = 3
+        const val REWARDED_BONUS = 1
 
         fun getInstance(): PrefsManager =
             instance ?: throw IllegalStateException("Call PrefsManager.init(context) first")

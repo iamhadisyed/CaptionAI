@@ -108,7 +108,7 @@ KEY_PASSWORD=...
 
 | | Free | Pro (`caption_ai_pro_monthly`) |
 |---|---|---|
-| Generations | 3 per day (+3 per rewarded ad) | Unlimited |
+| Generations | 3 per day (+1 per rewarded ad) | Unlimited |
 | Price | — | Shown from Google Play (localised) |
 | Ads | Banner + interstitial every 3rd generation | None |
 

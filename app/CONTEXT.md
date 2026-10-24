@@ -117,7 +117,7 @@ Caption AI implements a resilient dual-provider architecture:
 | Condition | Free | Pro |
 |-----------|------|-----|
 | Daily limit | 3 generations per day | Unlimited |
-| Bonus generations | Can earn +3 by watching rewarded ad | N/A |
+| Bonus generations | Can earn +1 by watching rewarded ad | N/A |
 | Ads shown | Banner + Interstitial every 3rd gen | No ads |
 | API Key | Default Feature Key | Default or User Override |
 
