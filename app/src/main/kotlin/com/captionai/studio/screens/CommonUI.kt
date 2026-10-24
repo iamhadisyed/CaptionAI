@@ -39,7 +39,8 @@ fun copyToClipboard(context: Context, text: String) {
 @Composable
 fun BannerAdView() {
     val isPro by PrefsManager.getInstance().proState
-    if (isPro) return
+    val adsReady by AdManager.adsReady
+    if (isPro || !adsReady) return
     
     AndroidView(
         modifier = Modifier.fillMaxWidth().height(50.dp),

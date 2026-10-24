@@ -20,7 +20,7 @@ We do not require you to create an account. However, you provide us with:
 Our app uses the following third-party services that may collect data:
 *   **Groq Cloud:** To generate captions and analyse photos. Please refer to Groq's Privacy Policy.
 *   **Google Gemini AI:** Backup provider used to generate captions. Please refer to Google's Privacy Policy.
-*   **Google AdMob:** To show advertisements. AdMob may collect device identifiers to show personalized ads.
+*   **Google AdMob:** To show advertisements. AdMob may collect device identifiers to show personalized ads. Where required by law (for example the EEA, UK and some US states) we ask for your consent before ads are requested, using Google's User Messaging Platform. You can change your choice later in Settings -> Privacy & ad settings.
 *   **Google Play Billing:** To process Pro upgrades.
 
 ## 3. Data Storage

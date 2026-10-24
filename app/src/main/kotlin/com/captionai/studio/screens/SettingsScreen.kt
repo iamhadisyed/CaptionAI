@@ -22,6 +22,7 @@ import com.captionai.studio.storage.PrefsManager
 import androidx.compose.ui.platform.LocalContext
 import com.captionai.studio.storage.DatabaseHelper
 import com.captionai.studio.utils.BillingHelper
+import com.captionai.studio.utils.ConsentManager
 import android.app.Activity
 
 @Composable
@@ -84,6 +85,19 @@ fun SettingsScreen(navController: NavController, billingHelper: BillingHelper) {
                         )
                     }
                 )
+
+                val privacyRequired by ConsentManager.privacyOptionsRequired
+                if (privacyRequired) {
+                    SettingsRow(
+                        icon = Icons.Default.PrivacyTip,
+                        title = "Privacy & ad settings",
+                        subtitle = "Review your ad consent choices",
+                        trailing = {
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
+                        },
+                        onClick = { (context as? Activity)?.let { ConsentManager.showPrivacyOptions(it) } }
+                    )
+                }
 
                 SettingsRow(
                     icon = Icons.Default.Delete,

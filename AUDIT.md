@@ -112,4 +112,5 @@ None of the changes were compiled or run (no Android SDK in the review environme
 - S4 use `EncryptedSharedPreferences`/Keystore for the custom key
 - ViewModel/repository/Room refactor, OkHttp + serialization, string resources, accessibility pass, dependency upgrades (Billing 7+, Compose BOM, AdMob 23)
 - #20/#21 caption card: cleanup of saved PNGs, long-text scaling, RTL shaping
-- Consent (UMP) flow for ads, onboarding, analytics/crash reporting
+- Onboarding, analytics/crash reporting
+- Ad consent (UMP) flow: **done** in `ConsentManager.kt`; publish the messages in the AdMob console
