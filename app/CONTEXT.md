@@ -27,7 +27,7 @@ Caption AI is an Android app that generates viral social media captions, hashtag
 | Local DB | SQLite via SQLiteOpenHelper |
 | Preferences | SharedPreferences via PrefsManager singleton |
 | Ads | Google AdMob (Banner, Interstitial, Rewarded) |
-| Billing | Google Play Billing 6.1.0 (Monthly Subscription $25/mo) |
+| Billing | Google Play Billing 6.1.0 (Monthly Subscription (price from Google Play)) |
 | Build | Gradle, minSdk 24, targetSdk 34, Compose BOM 2024.01.00 |
 
 ---
@@ -117,7 +117,7 @@ Caption AI implements a resilient dual-provider architecture:
 | Condition | Free | Pro |
 |-----------|------|-----|
 | Daily limit | 3 generations per day | Unlimited |
-| Bonus generations | Can earn +3 by watching rewarded ad | N/A |
+| Bonus generations | Can earn +1 by watching rewarded ad | N/A |
 | Ads shown | Banner + Interstitial every 3rd gen | No ads |
 | API Key | Default Feature Key | Default or User Override |
 
@@ -132,4 +132,4 @@ Caption AI implements a resilient dual-provider architecture:
 
 ---
 
-*Last updated: Caption AI v1.2.0 — Subscription and Modern Design Update*
+*Last updated: Caption AI v1.2.0 — see AUDIT.md for the fix log*

@@ -31,6 +31,9 @@ class PrefsManager private constructor(context: Context) {
             }
         }
 
+        const val FREE_DAILY_LIMIT = 3
+        const val REWARDED_BONUS = 1
+
         fun getInstance(): PrefsManager =
             instance ?: throw IllegalStateException("Call PrefsManager.init(context) first")
 
@@ -108,6 +111,7 @@ class PrefsManager private constructor(context: Context) {
     fun incrementDailyCount() {
         val count = getDailyCount()
         prefs.edit().putInt("daily_count", count + 1).apply()
+        _quotaTick.value++
     }
 
     private fun todayKey(): String =
@@ -115,26 +119,42 @@ class PrefsManager private constructor(context: Context) {
 
     // ── Bonus generations ─────────────────────────────────────────────────────
 
+    private val _quotaTick = androidx.compose.runtime.mutableStateOf(0)
+    /** Changes whenever the quota changes; read it in composables to recompose. */
+    val quotaTick: androidx.compose.runtime.State<Int> = _quotaTick
+
     fun addBonusGenerations(n: Int) {
         val current = prefs.getInt("extra_gens", 0)
         prefs.edit().putInt("extra_gens", current + n).apply()
+        _quotaTick.value++
     }
 
     fun getExtraGenerations(): Int {
         return prefs.getInt("extra_gens", 0)
     }
 
+    /** Generations the user can still run today (daily allowance + bonus). Int.MAX_VALUE for Pro. */
+    fun remainingGenerations(): Int {
+        if (isPro()) return Int.MAX_VALUE
+        return (FREE_DAILY_LIMIT - getDailyCount()).coerceAtLeast(0) + getExtraGenerations()
+    }
+
+    fun canGenerate(): Boolean = remainingGenerations() > 0
+
+    /** Call this only AFTER a successful generation so failed requests don't cost quota. */
+    @Synchronized
     fun consumeGeneration(): Boolean {
         if (isPro()) return true
         
         val daily = getDailyCount()
         val extra = getExtraGenerations()
 
-        return if (daily < 3) {
+        return if (daily < FREE_DAILY_LIMIT) {
             incrementDailyCount()
             true
         } else if (extra > 0) {
             prefs.edit().putInt("extra_gens", extra - 1).apply()
+            _quotaTick.value++
             true
         } else {
             false
@@ -143,8 +163,15 @@ class PrefsManager private constructor(context: Context) {
 
     // ── Pro status ────────────────────────────────────────────────────────────
 
-    fun setPro(enabled: Boolean) = prefs.edit().putBoolean("is_pro", enabled).apply()
-    fun isPro(): Boolean = prefs.getBoolean("is_pro", false)
+    private val _isPro = androidx.compose.runtime.mutableStateOf(prefs.getBoolean("is_pro", false))
+    /** Observable Pro flag so the UI updates as soon as a purchase completes. */
+    val proState: androidx.compose.runtime.State<Boolean> = _isPro
+
+    fun setPro(enabled: Boolean) {
+        prefs.edit().putBoolean("is_pro", enabled).apply()
+        _isPro.value = enabled
+    }
+    fun isPro(): Boolean = _isPro.value
 
     // ── Trending sync timestamp ───────────────────────────────────────────────
 

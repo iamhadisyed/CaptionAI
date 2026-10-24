@@ -36,11 +36,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.captionai.studio.ai.GeminiClient
 import com.captionai.studio.storage.PrefsManager
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.viewinterop.AndroidView
 import com.captionai.studio.utils.AdManager
 import com.google.android.gms.ads.AdView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.ByteArrayOutputStream
 
@@ -68,8 +72,12 @@ fun HomeScreen(navController: NavController) {
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val dailyCount = remember(navBackStackEntry) { prefs.getDailyCount() }
+    val isPro by prefs.proState
+    val quotaTick by prefs.quotaTick
+    val remaining = remember(navBackStackEntry, quotaTick, isPro) { prefs.remainingGenerations() }
+    var showLimitDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -95,10 +103,10 @@ fun HomeScreen(navController: NavController) {
                 .verticalScroll(rememberScrollState())
         ) {
             // Modern App Bar Section
-            HomeAppBar(isPro = prefs.isPro(), navController = navController)
+            HomeAppBar(isPro = isPro, navController = navController)
 
             // Daily Limit Indicator (Modern UI)
-            if (!prefs.isPro()) {
+            if (!isPro) {
                 Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
                     Surface(
                         color = Color(0xFF7D5FFF).copy(alpha = 0.12f),
@@ -128,7 +136,7 @@ fun HomeScreen(navController: NavController) {
                                     letterSpacing = 1.sp
                                 )
                                 Text(
-                                    text = "${3 - dailyCount} of 3 generations left today",
+                                    text = "$remaining generations left today",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                                     fontWeight = FontWeight.Medium
@@ -248,6 +256,7 @@ fun HomeScreen(navController: NavController) {
                             onClick = {
                                 val last = GeminiClient.lastRequest
                                 if (last != null) {
+                                    GeminiClient.showLastResultOnly = true
                                     navController.navigate(
                                         Screen.Result.route + "?platform=${last.platform}" +
                                                 "&content=${Uri.encode(last.contentType)}&tone=${Uri.encode(last.tone)}" +
@@ -277,45 +286,31 @@ fun HomeScreen(navController: NavController) {
                                 return@Button
                             }
                             if (!isLoading) {
-                                if (!prefs.consumeGeneration()) {
-                                Toast.makeText(context, "Daily limit reached! Upgrade to Pro for more.", Toast.LENGTH_LONG).show()
-                                navController.navigate(Screen.Settings.route)
-                                return@Button
-                            }
-                                isLoading = true
-                                if (selectedImageUri != null) {
-                                    try {
-                                        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                                        context.contentResolver.openInputStream(selectedImageUri!!).use { stream ->
-                                            BitmapFactory.decodeStream(stream, null, options)
-                                        }
-
-                                        var scale = 1
-                                        while (options.outWidth / scale > 1024 || options.outHeight / scale > 1024) {
-                                            scale *= 2
-                                        }
-
-                                        val decodeOptions = BitmapFactory.Options().apply { inSampleSize = scale }
-                                        val bitmap = context.contentResolver.openInputStream(selectedImageUri!!).use { stream ->
-                                            BitmapFactory.decodeStream(stream, null, decodeOptions)
-                                        }
-
-                                        bitmap?.let {
-                                            val outputStream = ByteArrayOutputStream()
-                                            it.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
-                                            GeminiClient.pendingImageBase64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
-                                            it.recycle()
-                                        }
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("HomeScreen", "Image processing failed", e)
-                                    }
+                                // Quota is only charged after a successful generation (see ResultScreen).
+                                if (!prefs.canGenerate()) {
+                                    showLimitDialog = true
+                                    return@Button
                                 }
-                                navController.navigate(
-                                    Screen.Result.route + "?platform=${selectedPlatform.name}" +
-                                            "&content=${Uri.encode(selectedContent)}&tone=${Uri.encode(selectedTone)}" +
-                                            "&length=${Uri.encode(selectedLength)}&context=${Uri.encode(userContext)}"
-                                )
-                                isLoading = false
+                                isLoading = true
+                                val uri = selectedImageUri
+                                val request = Triple(selectedPlatform.name, selectedContent, Triple(selectedTone, selectedLength, userContext))
+                                scope.launch {
+                                    // Always reset so a previous photo is never sent with a new request.
+                                    GeminiClient.pendingImageBase64 = null
+                                    GeminiClient.showLastResultOnly = false
+                                    if (uri != null) {
+                                        GeminiClient.pendingImageBase64 = withContext(Dispatchers.IO) { encodeImage(context, uri) }
+                                        if (GeminiClient.pendingImageBase64 == null) {
+                                            Toast.makeText(context, "Couldn't read that photo - generating from text only.", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                    navController.navigate(
+                                        Screen.Result.route + "?platform=${request.first}" +
+                                                "&content=${Uri.encode(request.second)}&tone=${Uri.encode(request.third.first)}" +
+                                                "&length=${Uri.encode(request.third.second)}&context=${Uri.encode(request.third.third)}"
+                                    )
+                                    isLoading = false
+                                }
                             }
                         },
                         modifier = Modifier
@@ -348,6 +343,51 @@ fun HomeScreen(navController: NavController) {
             
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showLimitDialog) {
+        AlertDialog(
+            onDismissRequest = { showLimitDialog = false },
+            title = { Text("Daily limit reached") },
+            text = { Text("Watch a short ad to get +${PrefsManager.REWARDED_BONUS} generations, or upgrade to Pro for unlimited use.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLimitDialog = false
+                    val activity = context as? Activity
+                    val shown = activity != null && AdManager.showRewardedAd(activity) {
+                        prefs.addBonusGenerations(PrefsManager.REWARDED_BONUS)
+                        Toast.makeText(context, "+${PrefsManager.REWARDED_BONUS} generations added!", Toast.LENGTH_SHORT).show()
+                    }
+                    if (!shown) Toast.makeText(context, "Ad isn't ready yet - try again in a moment.", Toast.LENGTH_SHORT).show()
+                }) { Text("Watch ad") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showLimitDialog = false
+                    navController.navigate(Screen.Settings.route)
+                }) { Text("Go Pro") }
+            }
+        )
+    }
+}
+
+/** Downscales the picked image to <=1024px and returns it as base64 JPEG, or null on failure. */
+private fun encodeImage(context: android.content.Context, uri: Uri): String? {
+    return try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        var scale = 1
+        while (bounds.outWidth / scale > 1024 || bounds.outHeight / scale > 1024) scale *= 2
+        val bitmap = context.contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = scale })
+        } ?: return null
+        val out = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 70, out)
+        bitmap.recycle()
+        Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+    } catch (e: Exception) {
+        android.util.Log.e("HomeScreen", "Image processing failed", e)
+        null
     }
 }
 
@@ -412,15 +452,27 @@ fun ImageUploadSlot(uri: Uri?, onPick: () -> Unit, onRemove: () -> Unit) {
                 Text("Tap to add photo", color = Color(0xFF7D5FFF), fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         } else {
+            val context = LocalContext.current
+            val thumb by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, uri) {
+                value = withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use {
+                            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = 8 })
+                        }?.asImageBitmap()
+                    } catch (e: Exception) { null }
+                }
+            }
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF25D366).copy(0.1f)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Check, null, tint = Color(0xFF25D366))
+                Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF25D366).copy(0.1f)), contentAlignment = Alignment.Center) {
+                    val t = thumb
+                    if (t != null) Image(t, contentDescription = "Selected photo", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    else Icon(Icons.Default.Check, null, tint = Color(0xFF25D366))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
-                Text("Image Uploaded", fontWeight = FontWeight.Bold)
+                Text("Photo added", fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(onClick = onRemove) {
-                    Icon(Icons.Default.DeleteOutline, null, tint = Color.Red)
+                    Icon(Icons.Default.DeleteOutline, "Remove photo", tint = Color.Red)
                 }
             }
         }

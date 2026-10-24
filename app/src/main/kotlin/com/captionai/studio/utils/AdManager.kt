@@ -3,6 +3,7 @@ package com.captionai.studio.utils
 import android.app.Activity
 import android.content.Context
 import com.google.android.gms.ads.*
+import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
@@ -16,12 +17,19 @@ import com.google.android.gms.ads.nativead.NativeAd
 
 object AdManager {
 
-    private const val BANNER_AD_UNIT_ID     = "ca-app-pub-1237562221952085/2394112086"
+    private const val BANNER_AD_UNIT_ID     = "ca-app-pub-4894264775611031/1876381885"
     private const val NATIVE_AD_UNIT_ID     = "ca-app-pub-1237562221952085/3584354536"
-    private const val INTERSTITIAL_AD_UNIT  = "ca-app-pub-1237562221952085/9958191194"
+    private const val INTERSTITIAL_AD_UNIT  = "ca-app-pub-4894264775611031/8058646850"
     
-    // Fallback test ID for rewarded as it wasn't provided, or you can use Full Page if needed
-    private const val REWARDED_AD_UNIT      = "ca-app-pub-3940256099942544/5224354917"
+    private const val REWARDED_AD_UNIT      = "ca-app-pub-4894264775611031/4011590630"
+
+    private const val APP_OPEN_AD_UNIT      = "ca-app-pub-4894264775611031/3577098480"
+    private const val APP_OPEN_MAX_AGE_MS   = 4 * 60 * 60 * 1000L // Google: app open ads expire after 4 hours
+
+    private var appOpenAd: AppOpenAd? = null
+    private var appOpenLoadedAt = 0L
+    private var isLoadingAppOpen = false
+    private var isShowingAppOpen = false
 
     private var interstitialAd: InterstitialAd? = null
     private var rewardedAd: RewardedAd? = null
@@ -30,7 +38,60 @@ object AdManager {
     fun initialize(context: Context) {
         MobileAds.initialize(context)
         preloadInterstitial(context)
-        // preloadRewarded(context) // Optional: disabled as real ID was not provided
+        preloadRewarded(context)
+        preloadAppOpen(context)
+    }
+
+    // ── App Open Ad ───────────────────────────────────────────────────────────
+    // Shown when the user brings the app back to the foreground (see MyApp).
+
+    private fun appOpenAvailable(): Boolean =
+        appOpenAd != null && System.currentTimeMillis() - appOpenLoadedAt < APP_OPEN_MAX_AGE_MS
+
+    fun preloadAppOpen(context: Context) {
+        if (isLoadingAppOpen || appOpenAvailable()) return
+        isLoadingAppOpen = true
+        AppOpenAd.load(
+            context,
+            APP_OPEN_AD_UNIT,
+            AdRequest.Builder().build(),
+            object : AppOpenAd.AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    appOpenAd = ad
+                    appOpenLoadedAt = System.currentTimeMillis()
+                    isLoadingAppOpen = false
+                }
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    appOpenAd = null
+                    isLoadingAppOpen = false
+                }
+            }
+        )
+    }
+
+    /** Shows the app open ad if one is ready. Pro users never see it. */
+    fun showAppOpenIfAvailable(activity: Activity) {
+        if (isShowingAppOpen || PrefsManager.getInstance().isPro()) return
+        val ad = appOpenAd
+        if (ad == null || !appOpenAvailable()) {
+            appOpenAd = null
+            preloadAppOpen(activity)
+            return
+        }
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                isShowingAppOpen = false
+                appOpenAd = null
+                preloadAppOpen(activity)
+            }
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                isShowingAppOpen = false
+                appOpenAd = null
+                preloadAppOpen(activity)
+            }
+        }
+        isShowingAppOpen = true
+        ad.show(activity)
     }
 
     // ── Banner Ad ─────────────────────────────────────────────────────────────
@@ -100,13 +161,22 @@ object AdManager {
 
     // ── Rewarded Ad (Bonus) ───────────────────────────────────────────────────
 
-    fun showRewardedAd(activity: Activity, onRewarded: () -> Unit) {
-        rewardedAd?.show(activity) { _ ->
-            onRewarded()
+    fun isRewardedReady(): Boolean = rewardedAd != null
+
+    /**
+     * Shows a rewarded ad. [onRewarded] fires only when the user earns the reward.
+     * Returns false (and starts loading another ad) if none is ready yet.
+     */
+    fun showRewardedAd(activity: Activity, onRewarded: () -> Unit): Boolean {
+        val ad = rewardedAd
+        if (ad == null) {
             preloadRewarded(activity)
-        } ?: run {
-            preloadRewarded(activity)
+            return false
         }
+        rewardedAd = null
+        ad.show(activity) { _ -> onRewarded() }
+        preloadRewarded(activity)
+        return true
     }
 
     private fun preloadRewarded(context: Context) {

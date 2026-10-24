@@ -1,6 +1,6 @@
 # Privacy Policy for Caption AI
 
-**Last Updated:** [Current Date]
+**Last Updated:** 2026-10-23
 
 Caption AI ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and share information when you use our mobile application.
 
@@ -8,8 +8,9 @@ Caption AI ("we", "our", "us") is committed to protecting your privacy. This Pri
 
 ### a. User-Provided Information
 We do not require you to create an account. However, you provide us with:
-*   **API Key:** To use the AI features, you may enter your own Google Gemini API key. This key is stored securely and locally on your device and is only used to make requests to Google Gemini AI.
-*   **User Context:** The text descriptions you enter for caption generation are sent to Google Gemini AI to process your request.
+*   **API Key:** To use the AI features, you may enter your own Groq or Google Gemini API key. This key is stored only on your device (it is excluded from backups) and is only sent to the matching provider.
+*   **User Context:** The text descriptions you enter for caption generation are sent to our AI providers (Groq and Google Gemini) to process your request.
+*   **Photos:** If you attach a photo, a downscaled copy is sent to the AI provider to analyse it. Photos are not stored by the app beyond the request.
 
 ### b. Automatically Collected Information
 *   **Usage Data:** We may collect information about how you interact with the app (e.g., buttons clicked, time spent) to improve our service.
@@ -17,7 +18,8 @@ We do not require you to create an account. However, you provide us with:
 
 ## 2. Third-Party Services
 Our app uses the following third-party services that may collect data:
-*   **Google Gemini AI:** To generate captions. Please refer to Google's Privacy Policy.
+*   **Groq Cloud:** To generate captions and analyse photos. Please refer to Groq's Privacy Policy.
+*   **Google Gemini AI:** Backup provider used to generate captions. Please refer to Google's Privacy Policy.
 *   **Google AdMob:** To show advertisements. AdMob may collect device identifiers to show personalized ads.
 *   **Google Play Billing:** To process Pro upgrades.
 

@@ -130,12 +130,16 @@ object GroqClient {
         conn.setRequestProperty("User-Agent", "CaptionAI-Android/${BuildConfig.VERSION_NAME}")
         conn.doOutput = true
         conn.connectTimeout = 25_000
-        conn.readTimeout = 25_000
+        conn.readTimeout = 45_000
 
         val requestBody = JSONObject().apply {
             put("model", model)
             put("temperature", 0.7)
-            put("max_completion_tokens", 1000)
+            // gpt-oss models spend completion tokens on reasoning, so leave plenty of headroom.
+            put("max_completion_tokens", 4096)
+            if (model.startsWith("openai/gpt-oss")) {
+                put("reasoning_effort", "low")
+            }
             if (useJsonObjectMode) {
                 put("response_format", JSONObject().put("type", "json_object"))
             }
@@ -195,7 +199,8 @@ object GroqClient {
     private fun parseCaptionResponse(raw: String, platform: String): CaptionResult {
         val choices = JSONObject(raw).getJSONArray("choices")
         if (choices.length() == 0) throw Exception("No choices in Groq response")
-        val content = choices.getJSONObject(0).getJSONObject("message").getString("content")
+        val content = choices.getJSONObject(0).getJSONObject("message").optString("content")
+        if (content.isBlank()) throw Exception("Groq returned an empty response")
 
         val cleanJson = extractJsonBlock(content)
         val parsed = JSONObject(cleanJson)

@@ -3,9 +3,10 @@
 
     <!-- Required for Gemini API calls -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:label="Caption AI"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -13,10 +14,10 @@
         android:theme="@style/Theme.CaptionAI"
         android:name=".MyApp">
 
-        <!-- Replace with your AdMob App ID from admob.google.com -->
+        <!-- AdMob App ID (admob.google.com). Must belong to the same AdMob account as the ad unit IDs in AdManager.kt -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-1237562221952085~7889981347"/>
+            android:value="ca-app-pub-4894264775611031~9811334343"/>
 
         <activity
             android:name=".MainActivity"

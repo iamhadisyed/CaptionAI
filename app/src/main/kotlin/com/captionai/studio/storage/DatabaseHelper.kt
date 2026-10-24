@@ -18,6 +18,14 @@ data class FavoriteCaption(
     val savedAt: Long
 )
 
+data class HistoryRow(
+    val id: Long,
+    val caption: String,
+    val hashtags: String,
+    val platform: String,
+    val createdAt: Long
+)
+
 data class TrendingCaption(
     val id: Long,
     val caption: String,
@@ -25,9 +33,10 @@ data class TrendingCaption(
 )
 
 class DatabaseHelper private constructor(context: Context) :
-    SQLiteOpenHelper(context, "caption_ai.db", null, 1) {
+    SQLiteOpenHelper(context, "caption_ai.db", null, 2) {
 
     companion object {
+        private const val MAX_HISTORY_ROWS = 300
         @Volatile private var instance: DatabaseHelper? = null
 
         fun getInstance(context: Context): DatabaseHelper {
@@ -66,17 +75,26 @@ class DatabaseHelper private constructor(context: Context) :
         """)
     }
 
+    // Never drop user data on upgrade. Add `if (oldVersion < N) { ALTER TABLE ... }` steps here
+    // whenever DB_VERSION is bumped.
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS favorites")
-        db.execSQL("DROP TABLE IF EXISTS history")
-        db.execSQL("DROP TABLE IF EXISTS trending")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_history_created ON history(created_at)")
+        }
     }
 
     // ── Favorites ─────────────────────────────────────────────────────────────
 
+    fun isFavorite(caption: String): Boolean =
+        readableDatabase.query("favorites", arrayOf("id"), "caption = ?", arrayOf(caption), null, null, null, "1")
+            .use { it.moveToFirst() }
+
+    /** Saves a favorite; saving the same caption twice is a no-op that returns the existing row id. */
     fun saveFavorite(caption: String, platform: String): Long {
         val db = writableDatabase
+        db.query("favorites", arrayOf("id"), "caption = ?", arrayOf(caption), null, null, null, "1").use {
+            if (it.moveToFirst()) return it.getLong(0)
+        }
         val values = ContentValues().apply {
             put("caption", caption)
             put("platform", platform)
@@ -113,15 +131,48 @@ class DatabaseHelper private constructor(context: Context) :
 
     fun saveCaptionToHistory(result: CaptionResult) {
         val db = writableDatabase
-        result.captions.forEach { caption ->
-            val values = ContentValues().apply {
-                put("caption", caption)
-                put("hashtags", result.hashtags.joinToString(","))
-                put("platform", result.platform)
-                put("created_at", System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        db.beginTransaction()
+        try {
+            result.captions.forEach { caption ->
+                val values = ContentValues().apply {
+                    put("caption", caption)
+                    put("hashtags", result.hashtags.joinToString(","))
+                    put("platform", result.platform)
+                    put("created_at", now)
+                }
+                db.insert("history", null, values)
             }
-            db.insert("history", null, values)
+            // Keep the table bounded.
+            db.execSQL(
+                "DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY created_at DESC, id DESC LIMIT $MAX_HISTORY_ROWS)"
+            )
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
+    }
+
+    fun getHistory(): List<HistoryRow> {
+        val list = mutableListOf<HistoryRow>()
+        readableDatabase.query("history", null, null, null, null, null, "created_at DESC, id ASC").use {
+            while (it.moveToNext()) {
+                list.add(
+                    HistoryRow(
+                        id = it.getLong(it.getColumnIndexOrThrow("id")),
+                        caption = it.getString(it.getColumnIndexOrThrow("caption")),
+                        hashtags = it.getString(it.getColumnIndexOrThrow("hashtags")),
+                        platform = it.getString(it.getColumnIndexOrThrow("platform")),
+                        createdAt = it.getLong(it.getColumnIndexOrThrow("created_at"))
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    fun deleteHistoryItem(id: Long) {
+        writableDatabase.delete("history", "id = ?", arrayOf(id.toString()))
     }
 
     fun clearHistory() {
@@ -132,14 +183,20 @@ class DatabaseHelper private constructor(context: Context) :
 
     fun saveTrendingCaptions(captions: List<String>) {
         val db = writableDatabase
-        db.delete("trending", null, null)  // replace old batch
         val now = System.currentTimeMillis()
-        captions.forEach { caption ->
-            val values = ContentValues().apply {
-                put("caption", caption)
-                put("synced_at", now)
+        db.beginTransaction()
+        try {
+            db.delete("trending", null, null)  // replace old batch
+            captions.forEach { caption ->
+                val values = ContentValues().apply {
+                    put("caption", caption)
+                    put("synced_at", now)
+                }
+                db.insert("trending", null, values)
             }
-            db.insert("trending", null, values)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
     }
 

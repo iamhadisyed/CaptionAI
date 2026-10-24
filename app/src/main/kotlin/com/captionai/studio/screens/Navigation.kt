@@ -34,8 +34,11 @@ fun CaptionAIApp(billingHelper: BillingHelper) {
     val navController = rememberNavController()
 
     Scaffold(
-        bottomBar = { 
-            FloatingBottomNavigationBar(navController = navController)
+        bottomBar = {
+            Column {
+                BannerAdView()
+                FloatingBottomNavigationBar(navController = navController)
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
