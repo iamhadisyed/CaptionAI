@@ -3,6 +3,7 @@ package com.captionai.studio.utils
 import android.app.Activity
 import android.content.Context
 import com.google.android.gms.ads.*
+import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
@@ -24,6 +25,14 @@ object AdManager {
     // This is Google's official test ID, so no revenue is earned until it is replaced.
     private const val REWARDED_AD_UNIT      = "ca-app-pub-3940256099942544/5224354917"
 
+    private const val APP_OPEN_AD_UNIT      = "ca-app-pub-4894264775611031/3577098480"
+    private const val APP_OPEN_MAX_AGE_MS   = 4 * 60 * 60 * 1000L // Google: app open ads expire after 4 hours
+
+    private var appOpenAd: AppOpenAd? = null
+    private var appOpenLoadedAt = 0L
+    private var isLoadingAppOpen = false
+    private var isShowingAppOpen = false
+
     private var interstitialAd: InterstitialAd? = null
     private var rewardedAd: RewardedAd? = null
     private var generationCount = 0
@@ -32,6 +41,59 @@ object AdManager {
         MobileAds.initialize(context)
         preloadInterstitial(context)
         preloadRewarded(context)
+        preloadAppOpen(context)
+    }
+
+    // ── App Open Ad ───────────────────────────────────────────────────────────
+    // Shown when the user brings the app back to the foreground (see MyApp).
+
+    private fun appOpenAvailable(): Boolean =
+        appOpenAd != null && System.currentTimeMillis() - appOpenLoadedAt < APP_OPEN_MAX_AGE_MS
+
+    fun preloadAppOpen(context: Context) {
+        if (isLoadingAppOpen || appOpenAvailable()) return
+        isLoadingAppOpen = true
+        AppOpenAd.load(
+            context,
+            APP_OPEN_AD_UNIT,
+            AdRequest.Builder().build(),
+            object : AppOpenAd.AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    appOpenAd = ad
+                    appOpenLoadedAt = System.currentTimeMillis()
+                    isLoadingAppOpen = false
+                }
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    appOpenAd = null
+                    isLoadingAppOpen = false
+                }
+            }
+        )
+    }
+
+    /** Shows the app open ad if one is ready. Pro users never see it. */
+    fun showAppOpenIfAvailable(activity: Activity) {
+        if (isShowingAppOpen || PrefsManager.getInstance().isPro()) return
+        val ad = appOpenAd
+        if (ad == null || !appOpenAvailable()) {
+            appOpenAd = null
+            preloadAppOpen(activity)
+            return
+        }
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                isShowingAppOpen = false
+                appOpenAd = null
+                preloadAppOpen(activity)
+            }
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                isShowingAppOpen = false
+                appOpenAd = null
+                preloadAppOpen(activity)
+            }
+        }
+        isShowingAppOpen = true
+        ad.show(activity)
     }
 
     // ── Banner Ad ─────────────────────────────────────────────────────────────
