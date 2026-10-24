@@ -35,8 +35,17 @@ object AdManager {
     private var rewardedAd: RewardedAd? = null
     private var generationCount = 0
 
+    /** True once consent allows ad requests and the SDK has been initialised. */
+    val adsReady = androidx.compose.runtime.mutableStateOf(false)
+    private var initialized = false
+
+    /** Call only after [ConsentManager] says ads may be requested. Safe to call repeatedly. */
+    @Synchronized
     fun initialize(context: Context) {
+        if (initialized) return
+        initialized = true
         MobileAds.initialize(context)
+        adsReady.value = true
         preloadInterstitial(context)
         preloadRewarded(context)
         preloadAppOpen(context)
@@ -49,7 +58,7 @@ object AdManager {
         appOpenAd != null && System.currentTimeMillis() - appOpenLoadedAt < APP_OPEN_MAX_AGE_MS
 
     fun preloadAppOpen(context: Context) {
-        if (isLoadingAppOpen || appOpenAvailable()) return
+        if (!initialized || isLoadingAppOpen || appOpenAvailable()) return
         isLoadingAppOpen = true
         AppOpenAd.load(
             context,
@@ -97,6 +106,7 @@ object AdManager {
     // ── Banner Ad ─────────────────────────────────────────────────────────────
 
     fun getBannerAdView(context: Context): AdView {
+        check(initialized) { "Ads are not initialised yet (no consent)" }
         return AdView(context).apply {
             setAdSize(AdSize.BANNER)
             adUnitId = BANNER_AD_UNIT_ID
@@ -107,6 +117,7 @@ object AdManager {
     // ── Native Ad ─────────────────────────────────────────────────────────────
     
     fun loadNativeAd(context: Context, onLoaded: (NativeAd) -> Unit) {
+        if (!initialized) return
         val adLoader = AdLoader.Builder(context, NATIVE_AD_UNIT_ID)
             .forNativeAd { nativeAd -> onLoaded(nativeAd) }
             .withAdListener(object : AdListener() {
@@ -130,6 +141,7 @@ object AdManager {
     }
 
     private fun preloadInterstitial(context: Context) {
+        if (!initialized) return
         InterstitialAd.load(
             context,
             INTERSTITIAL_AD_UNIT,
@@ -180,6 +192,7 @@ object AdManager {
     }
 
     private fun preloadRewarded(context: Context) {
+        if (!initialized) return
         RewardedAd.load(
             context,
             REWARDED_AD_UNIT,

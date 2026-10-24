@@ -17,13 +17,16 @@ Work through this on your machine. Details for each finding are in [`AUDIT.md`](
 - [ ] Test the purchase flow, restore purchases, and a pending payment
 - [ ] Decide the Pro price (older docs said $25/mo, old UI said $5/mo; the app now shows the Play price)
 
+- [ ] AdMob console: **Privacy & messaging** -> create and publish a GDPR message (EEA/UK) and a US states message, otherwise no consent form is shown
+- [ ] Test the consent form with `ConsentDebugSettings` (see `ConsentManager.kt`) on a test device
+
 ## 3. Still open from the audit
 | Priority | Item | Audit ref |
 |---|---|---|
 | High | Move AI calls behind a small backend proxy so no provider keys ship in the APK; enforce Pro/quota server-side | S1, S2 |
 | High | Encrypt the custom API key (`EncryptedSharedPreferences` / Keystore) | S4 |
 | Medium | ViewModels + repository; move SQLite to Room with migrations | Architecture |
-| Medium | Consent (UMP) flow for ads, onboarding screen | UX, S8 |
+| Medium | Onboarding screen | UX |
 | Medium | Caption card: delete old PNGs, scale long text, test Urdu/RTL rendering | #20, #21 |
 | Low | Upgrade dependencies (Billing 7+, Compose BOM, AdMob 23, Navigation) | Architecture |
 | Low | Move UI strings to `strings.xml`, accessibility pass (content descriptions, contrast) | UX |

@@ -10,6 +10,31 @@ if (rootProject.file('local.properties').exists()) {
     localProps.load(new FileInputStream(rootProject.file('local.properties')))
 }
 
+// ── Auto-incrementing version code ───────────────────────────────────────────
+// version.properties (committed to Git) stores the last version code used for a release build.
+// Every `bundleRelease` / `assembleRelease` run (including Android Studio's "Generate Signed Bundle")
+// bumps it by 1, so Google Play never sees the same version code twice.
+// Change VERSION_NAME there when you want a new user-visible version (e.g. 1.3.0).
+def versionFile = rootProject.file('version.properties')
+def versionProps = new Properties()
+if (versionFile.exists()) {
+    versionFile.withInputStream { versionProps.load(it) }
+}
+def lastVersionCode = (versionProps.getProperty('VERSION_CODE') ?: '10').toInteger()
+def appVersionName = versionProps.getProperty('VERSION_NAME') ?: '1.2.0'
+
+def isReleaseBuild = gradle.startParameter.taskNames.any {
+    it.toLowerCase().matches('.*(bundle|assemble|publish)release.*')
+}
+def appVersionCode = lastVersionCode
+if (isReleaseBuild) {
+    appVersionCode = lastVersionCode + 1
+    versionProps.setProperty('VERSION_CODE', appVersionCode.toString())
+    versionProps.setProperty('VERSION_NAME', appVersionName)
+    versionFile.withOutputStream { versionProps.store(it, 'Updated automatically on each release build') }
+    println "Release build: versionCode ${appVersionCode}, versionName ${appVersionName}"
+}
+
 android {
     namespace 'com.captionai.studio'
     compileSdk 35
@@ -18,8 +43,8 @@ android {
         applicationId "com.captionai.studio"
         minSdk 24
         targetSdk 35
-        versionCode 4
-        versionName "1.2.0"
+        versionCode appVersionCode
+        versionName appVersionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -102,6 +127,8 @@ dependencies {
     
     // Ads (Google AdMob)
     implementation "com.google.android.gms:play-services-ads:22.6.0"
+    // User Messaging Platform (ad consent: GDPR / US state laws)
+    implementation "com.google.android.ump:user-messaging-platform:2.2.0"
     
     // Splash Screen
     implementation "androidx.core:core-splashscreen:1.0.1"
@@ -115,4 +142,23 @@ dependencies {
     androidTestImplementation "androidx.compose.ui:ui-test-junit4"
     debugImplementation "androidx.compose.ui:ui-tooling"
     debugImplementation "androidx.compose.ui:ui-test-manifest"
+}
+
+// Stop early (with instructions) instead of silently producing an unsigned release build
+// that Google Play would reject. See RELEASE.md.
+gradle.taskGraph.whenReady { graph ->
+    def releaseRequested = graph.allTasks.any {
+        it.path.startsWith(':app:') && (it.name == 'bundleRelease' || it.name == 'assembleRelease')
+    }
+    if (releaseRequested) {
+        if (!localProps.getProperty('STORE_FILE')) {
+            throw new GradleException("Release build is not signed: STORE_FILE is missing in local.properties. Follow RELEASE.md (create a keystore and add STORE_FILE, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD).")
+        }
+        if (!file(localProps.getProperty('STORE_FILE')).exists()) {
+            throw new GradleException("Keystore file not found: ${localProps.getProperty('STORE_FILE')}. Check STORE_FILE in local.properties (use forward slashes, e.g. C:/keys/captionai.jks).")
+        }
+        if (!localProps.getProperty('GROQ_API_KEY') && !localProps.getProperty('GEMINI_KEY_1')) {
+            logger.warn("WARNING: no GROQ_API_KEY / GEMINI_KEY_1 in local.properties - this release build will have NO built-in AI key.")
+        }
+    }
 }

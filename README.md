@@ -102,6 +102,8 @@ KEY_PASSWORD=...
 ./gradlew bundleRelease        # signed AAB for Google Play (needs STORE_* values)
 ```
 
+> **Releasing to Google Play?** Follow [`RELEASE.md`](RELEASE.md): signing setup, automatic version codes and upload steps.
+
 > ⚠️ Keys are compiled into `BuildConfig` and can be extracted from the APK. See `AUDIT.md` for the recommended proxy-backend fix.
 
 ## Free vs Pro

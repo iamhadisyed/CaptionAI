@@ -17,7 +17,7 @@ class MyApp : Application(), Application.ActivityLifecycleCallbacks, DefaultLife
     override fun onCreate() {
         super<Application>.onCreate()
         PrefsManager.init(this)
-        AdManager.initialize(this)
+        // Ads are initialised by ConsentManager once the user has given (or doesn't need to give) consent.
         registerActivityLifecycleCallbacks(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
